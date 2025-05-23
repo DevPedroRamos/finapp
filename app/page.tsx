@@ -4,9 +4,12 @@ import { cookies } from "next/headers";
 
 export default async function Home() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect("/auth/login");
   } else {
     redirect("/dashboard");

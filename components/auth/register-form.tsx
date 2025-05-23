@@ -8,11 +8,25 @@ import * as z from "zod";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Wallet2 } from "lucide-react";
-
+import { NumericFormat } from "react-number-format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -43,43 +57,43 @@ export default function RegisterForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    
+
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
-        options: {
-          data: {
-            name: values.name,
-          },
-        },
       });
 
-      if (authError) {
-        throw authError;
-      }
+      if (authError) throw authError;
+      if (!authData?.user) throw new Error("Usuário não foi criado");
 
-      if (authData.user) {
-        const { error: profileError } = await supabase.from("users").insert({
-          id: authData.user.id,
-          name: values.name,
-          email: values.email,
-          monthlyIncome: parseFloat(values.monthlyIncome),
-          onboardingCompleted: false,
-        });
+      const userId = authData.user.id;
 
-        if (profileError) {
-          throw profileError;
-        }
+      const { error: profileError } = await supabase.from("users").insert({
+        id: userId,
+        name: values.name,
+        email: values.email,
+        monthlyIncome: parseFloat(values.monthlyIncome),
+        onboardingCompleted: false,
+      });
 
-        toast({
-          title: "Conta criada",
-          description: "Sua conta foi criada com sucesso. Redirecionando para o onboarding.",
-        });
+      if (profileError) throw profileError;
 
-        router.push("/onboarding");
-        router.refresh();
-      }
+      // Auto-login após cadastro
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+
+      if (loginError) throw loginError;
+
+      toast({
+        title: "Conta criada",
+        description: "Redirecionando para o onboarding...",
+      });
+
+      router.push("/onboarding");
+      router.refresh();
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -140,7 +154,12 @@ export default function RegisterForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} disabled={isLoading} />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
+                      disabled={isLoading}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -153,11 +172,20 @@ export default function RegisterForm() {
                 <FormItem>
                   <FormLabel>Renda Mensal</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="5000" 
-                      {...field} 
-                      disabled={isLoading} 
+                    <NumericFormat
+                      thousandSeparator="."
+                      decimalSeparator=","
+                      prefix="R$ "
+                      allowNegative={false}
+                      decimalScale={2}
+                      fixedDecimalScale
+                      customInput={Input}
+                      placeholder="R$ 5.000,00"
+                      disabled={isLoading}
+                      value={field.value}
+                      onValueChange={(values) => {
+                        field.onChange(values.value);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -165,7 +193,7 @@ export default function RegisterForm() {
               )}
             />
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
+              {isLoading && <Spinner size="sm" className="mr-2" />}
               Criar Conta
             </Button>
           </form>

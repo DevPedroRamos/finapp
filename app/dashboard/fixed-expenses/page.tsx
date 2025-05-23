@@ -5,9 +5,12 @@ import FixedExpensesPage from "@/components/fixed-expenses/fixed-expenses-page";
 
 export default async function FixedExpenses() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect("/auth/login");
   }
 
@@ -15,7 +18,7 @@ export default async function FixedExpenses() {
   const { data: fixedExpenses } = await supabase
     .from("fixed_expenses")
     .select("*")
-    .eq("userId", session.user.id)
+    .eq("userId", user.id)
     .order("createdAt", { ascending: false });
 
   return <FixedExpensesPage fixedExpenses={fixedExpenses || []} />;

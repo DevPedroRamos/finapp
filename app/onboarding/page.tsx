@@ -5,26 +5,29 @@ import OnboardingForm from "@/components/onboarding/onboarding-form";
 
 export default async function Onboarding() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect("/auth/login");
   }
 
   // Check if user has already completed onboarding
-  const { data: user } = await supabase
+  const { data: notnewuser } = await supabase
     .from("users")
     .select("onboardingCompleted")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
-  if (user?.onboardingCompleted) {
+  if (notnewuser?.onboardingCompleted) {
     redirect("/dashboard");
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-      <OnboardingForm userId={session.user.id} />
+      <OnboardingForm userId={user.id} />
     </div>
   );
 }

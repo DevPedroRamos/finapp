@@ -5,9 +5,12 @@ import TransactionsPage from "@/components/transactions/transactions-page";
 
 export default async function Transactions() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect("/auth/login");
   }
 
@@ -15,7 +18,7 @@ export default async function Transactions() {
   const { data: transactions } = await supabase
     .from("transactions")
     .select("*")
-    .eq("userId", session.user.id)
+    .eq("userId", user.id)
     .order("createdAt", { ascending: false });
 
   return <TransactionsPage transactions={transactions || []} />;

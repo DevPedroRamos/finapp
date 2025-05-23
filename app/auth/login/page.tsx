@@ -5,10 +5,20 @@ import LoginForm from "@/components/auth/login-form";
 
 export default async function Login() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
 
-  if (session) {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // Se já estiver autenticado, redireciona para o dashboard
+  if (user) {
     redirect("/dashboard");
+  }
+
+  // Se houver erro ao buscar o usuário, loga para debug
+  if (error) {
+    console.error("Erro ao buscar usuário no Supabase:", error.message);
   }
 
   return (

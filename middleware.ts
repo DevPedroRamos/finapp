@@ -2,52 +2,56 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
-  
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
 
-  // Handle authentication routes
+  // ✅ Usa getUser para autenticar o usuário com segurança
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // 👉 Se houver erro ao autenticar, trata como não autenticado
+  const isAuthenticated = !error && user;
+
+  // Rota de autenticação
   if (req.nextUrl.pathname.startsWith("/auth")) {
-    if (session) {
+    if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return res;
   }
 
-  // Handle onboarding routes
+  // Rota de onboarding
   if (req.nextUrl.pathname === "/onboarding") {
-    if (!session) {
+    if (!isAuthenticated) {
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
     return res;
   }
 
-  // Handle dashboard routes
+  // Rotas protegidas (dashboard)
   if (req.nextUrl.pathname.startsWith("/dashboard")) {
-    if (!session) {
+    if (!isAuthenticated) {
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
-    
-    // Check if the user has completed onboarding
+
     try {
+      // ✅ Agora usamos `user.id` em vez de `session.user.id`
       const { data: userData } = await supabase
         .from("users")
         .select("onboardingCompleted")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
-      
+
       if (userData && !userData.onboardingCompleted) {
         return NextResponse.redirect(new URL("/onboarding", req.url));
       }
-    } catch (error) {
-      // Continue to dashboard if there's an error checking the onboarding status
+    } catch (e) {
+      // Ignora erro e continua para o dashboard
     }
-    
+
     return res;
   }
 

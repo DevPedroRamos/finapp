@@ -6,9 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect("/auth/login");
   }
 
@@ -16,14 +19,14 @@ export default async function Dashboard() {
   const { data: userData } = await supabase
     .from("users")
     .select("*")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   // Fetch recent transactions
   const { data: recentTransactions } = await supabase
     .from("transactions")
     .select("*")
-    .eq("userId", session.user.id)
+    .eq("userId", user.id)
     .order("createdAt", { ascending: false })
     .limit(5);
 
@@ -31,7 +34,7 @@ export default async function Dashboard() {
   const { data: fixedExpenses } = await supabase
     .from("fixed_expenses")
     .select("*")
-    .eq("userId", session.user.id);
+    .eq("userId", user.id);
 
   return (
     <DashboardPage 
