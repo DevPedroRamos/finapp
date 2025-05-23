@@ -16,6 +16,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 
+// =============================
+// ✅ TIPAGEM e SCHEMA
+// =============================
 const expenseItemSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters long" }),
   amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
@@ -27,6 +30,8 @@ const expenseItemSchema = z.object({
 const formSchema = z.object({
   expenses: z.array(expenseItemSchema).min(1, { message: "Adicione pelo menos uma despesa." }),
 });
+
+type OnboardingFormValues = z.infer<typeof formSchema>;
 
 const expenseCategories = [
   { value: "Habitação", label: "Habitação" },
@@ -42,35 +47,36 @@ const expenseCategories = [
   { value: "Outros", label: "Outros" },
 ];
 
+// =============================
+// ✅ COMPONENTE PRINCIPAL
+// =============================
 export default function OnboardingForm({ userId }: { userId: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClientComponentClient();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       expenses: [{ title: "", amount: "", category: "" }],
     },
   });
 
-  const { fields, append, remove } = form.useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     name: "expenses",
     control: form.control,
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: OnboardingFormValues) {
     setIsLoading(true);
-    
+
     try {
-      // Filter out empty expenses
       const validExpenses = values.expenses.filter(
         (expense) => expense.title && expense.amount && expense.category
       );
 
       if (validExpenses.length > 0) {
-        // Insert fixed expenses
         const { error: expensesError } = await supabase.from("fixed_expenses").insert(
           validExpenses.map((expense) => ({
             userId,
@@ -86,7 +92,6 @@ export default function OnboardingForm({ userId }: { userId: string }) {
         }
       }
 
-      // Update user profile to mark onboarding as completed
       const { error: userUpdateError } = await supabase
         .from("users")
         .update({ onboardingCompleted: true })
@@ -117,9 +122,9 @@ export default function OnboardingForm({ userId }: { userId: string }) {
   return (
     <Card className="w-full max-w-3xl shadow-lg">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Let&apos;s Set Up Your Fixed Expenses</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">Vamos cadastrar suas despesas fixas</CardTitle>
         <CardDescription className="text-center">
-          Add your recurring monthly expenses to help us track your finances better
+          Adicione suas despesas mensais recorrentes para te ajudarmos no controle financeiro
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -129,7 +134,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
               {fields.map((field, index) => (
                 <div key={field.id} className="flex flex-col space-y-3 p-4 border rounded-md">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-medium">Expense #{index + 1}</h3>
+                    <h3 className="text-sm font-medium">Despesa #{index + 1}</h3>
                     {index > 0 && (
                       <Button
                         type="button"
@@ -145,12 +150,12 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
-                      name={`expenses.${index}.title`}
+                      name={`expenses.${index}.title` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Title</FormLabel>
+                          <FormLabel>Título</FormLabel>
                           <FormControl>
-                            <Input placeholder="Rent, Netflix, etc." {...field} disabled={isLoading} />
+                            <Input placeholder="Aluguel, Netflix, etc." {...field} disabled={isLoading} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -158,17 +163,12 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                     />
                     <FormField
                       control={form.control}
-                      name={`expenses.${index}.amount`}
+                      name={`expenses.${index}.amount` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Amount</FormLabel>
+                          <FormLabel>Valor</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="100"
-                              {...field}
-                              disabled={isLoading}
-                            />
+                            <Input type="number" placeholder="100" {...field} disabled={isLoading} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -176,10 +176,10 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                     />
                     <FormField
                       control={form.control}
-                      name={`expenses.${index}.category`}
+                      name={`expenses.${index}.category` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Category</FormLabel>
+                          <FormLabel>Categoria</FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value}
@@ -187,7 +187,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
+                                <SelectValue placeholder="Selecione a categoria" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -214,7 +214,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
               disabled={isLoading}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add Another Expense
+              Adicionar outra despesa
             </Button>
             <div className="flex justify-end space-x-2">
               <Button
@@ -223,18 +223,18 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                 onClick={() => router.push("/dashboard")}
                 disabled={isLoading}
               >
-                Skip for Now
+                Pular por enquanto
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Spinner size="sm" className="mr-2" /> : null}
-                Complete Setup
+                {isLoading && <Spinner size="sm" className="mr-2" />}
+                Finalizar cadastro
               </Button>
             </div>
           </form>
         </Form>
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground text-center">
-        You can always add or update your fixed expenses later from your dashboard.
+        Você poderá adicionar ou editar suas despesas depois no seu painel.
       </CardFooter>
     </Card>
   );

@@ -10,9 +10,13 @@ export default async function Onboarding() {
     error,
   } = await supabase.auth.getUser();
 
+  console.log(user?.id)
+
   if (error || !user) {
     redirect("/auth/login");
   }
+  console.log(user)
+
 
   // Check if user has already completed onboarding
   const { data: notnewuser } = await supabase
